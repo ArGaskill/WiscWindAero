@@ -1,17 +1,17 @@
 # WiscWindAero 🌪️
 
-**WiscWindAero** is the primary aerodynamic design and optimization repository for the WiscWind Collegiate Wind Competition team. This framework utilizes a multi-objective genetic algorithm (NSGA-II) to optimize wind turbine airfoil profiles (such as NACA 4412, NACA 6409, and SD7037) for maximum aerodynamic efficiency and structural viability.
+**WiscWindAero** is the main aerodynamics repo for the WiscWind Collegiate Wind Competition team. We are using a multi-objective genetic algorithm (NSGA-II) to optimize our turbine airfoils for maximum aerodynamic efficiency and structural viability within CWC constraints.
 
-## 🚀 Project Overview
+## Project Overview
 
-The objective of this framework is to iteratively evaluate and optimize turbine blade geometries by minimizing the negative Lift-to-Drag ratio ($-L/D$). It couples modern heuristic optimization with our established evaluation tools (XFOIL and QBlade) to automate the design of our next-generation 4-blade rotor architectures.
+The goal of this framework is to automate the design of our next-generation 4-blade rotors. The code iteratively tweaks blade geometries to minimize the negative Lift-to-Drag ratio by linking modern genetic optimization with the evaluation tools we have used in past years, like QBlade and XFOIL. 
 
 ### Core Modules
-* **`optimizer.py`**: The main execution script running the `pymoo` framework. It utilizes the `ElementwiseProblem` class with 10 normalized design variables (bounded 0 to 1) and enforces manufacturing constraints.
-* **`aerodynamics.py`**: Handles aerodynamic evaluations, extracting $C_l$ and $C_d$ coefficients for the optimization penalty functions.
-* **`geometry.py`**: Manages spatial coordinates and structural constraints, ensuring strict adherence to the 0.8 mm minimum thickness rule required for our PLA 3D-printing process.
+* **`optimizer.py`**: The main script driving the `pymoo` optimization. It uses the `ElementwiseProblem` class to handle the 10 normalized Bézier control points and enforce our manufacturing constraints.
+* **`aerodynamics.py`**: Takes the geometry, runs it through an XFOIL simulation, and pulls the $C_l$ and $C_d$ coefficients needed for the optimization penalty functions.
+* **`geometry.py`**: Translates the 10 Bézier control points into a full 2D airfoil geometry format that XFOIL can read.
 
-## 🛠️ Setup & Installation
+## Setup & Installation
 
 To run the optimization scripts locally, you must create a virtual environment to isolate the project dependencies. 
 
