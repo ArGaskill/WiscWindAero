@@ -37,5 +37,3 @@ print("solution: \nX = %s\nF = %s\nG = %s" % (results.X, results.F, results.G))
 # X will give you the inputted random values for the problem
 # F will give you calculated Cl/Cd
 # G will tell you whether thickness passed or failed (neg or pos)
-
-#Test Message
