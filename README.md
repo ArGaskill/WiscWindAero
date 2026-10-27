@@ -19,3 +19,12 @@ To run the optimization scripts locally, you must create a virtual environment t
    ```bash
    git clone [https://github.com/ArGaskill/WiscWindAero.git](https://github.com/ArGaskill/WiscWindAero.git)
    cd WiscWindAero
+
+## Contacts
+
+* **Arlo Gaskill** — Aerodynamics Lead  
+  [agaskill@wisc.edu](mailto:agaskill@wisc.edu)
+
+* **Andrew Hensal** — WiscWind President  
+  [ahensal@wisc.edu](mailto:ahensal@wisc.edu)
+
