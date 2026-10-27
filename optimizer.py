@@ -18,7 +18,7 @@ def dummy_xfoil_results(x):
 class Optimizer(ElementwiseProblem): #Elementwise works with a single solution at a time, I think that's what we want?
     def __init__(self):
         super().__init__(n_var = 10, # Number of Bezier points, Bezier points will be our variables
-                       n_obj = 1, # Currently just optimizing for Cl/Cd
+                         n_obj = 1, # Currently just optimizing for Cl/Cd
                        n_ieq_constr = 1, # we are applying one thickness constraint atm
                        xl = 0,
                        xu = 1) # Bezier points should be normalized to the foil, so I'm setting bounds from 0-1
@@ -30,8 +30,8 @@ class Optimizer(ElementwiseProblem): #Elementwise works with a single solution a
         out["G"] = 0.8 - thickness #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail. I'm setting 0.8 at min thickness
 
 problem_WW = Optimizer()
-NSGA_algo = NSGA2(pop_size=1)
-results = minimize(problem_WW, NSGA_algo, n_gen=10)
+NSGA_algo = NSGA2(pop_size=10)
+results = minimize(problem_WW, NSGA_algo, termination=('n_gen',10))
 
 print("solution: \nX = %s\nF = %s\nG = %s" % (results.X, results.F, results.G))
 # X will give you the inputted random values for the problem
