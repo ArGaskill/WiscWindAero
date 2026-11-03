@@ -26,8 +26,6 @@ def run_xfoil_sweep():
     print("Starting XFOIL subprocess...")
 
     # Launch XFOIL in the background
-    # Note: If 'xfoil' is not in your system PATH, replace ['xfoil'] with the absolute path
-    # e.g., r"C:\path\to\xfoil.exe"
     process = subprocess.Popen(
         ["xfoil"],
         stdin=subprocess.PIPE,
