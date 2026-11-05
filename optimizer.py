@@ -5,29 +5,50 @@ from pymoo.optimize import minimize
 ########################################################################################################################
 
 def dummy_geometry(x):
-    return 5 #mm
-#Im having this dummy function replace what we will get from the geometry team in the future
-#dummy_geometry returns a minimum thickness of the airfoil, I have it set to 5mm rn (might be a list of coords later)
+    return {
+        "pass": True, #does the geometry pass minimum recommended geometric attributes?
+        "dat_file": "airfoil_dat", #imported dat file
+        "max_thickness": 1, #normalized thickness
+        "te_thickness": .4  #normalized trailing edge thickness
+    }
+# dummy geometry now returns a dictionary that can give us all the information needed to run the optimizer
 
 def dummy_xfoil_results(x):
-    return 44.7, 2.6
-# Same here for the Xf0il team, output is a Cl and Cd pair
+    return {
+        "Cl_Cd": 42.6, #gives Cl/Cd ratio
+        "converged": True, #tells us if the xfoil simulation converged successfully
+        "alfa_max": 4 #tells us AOA at max Cl/Cd
+    }
+# Same here for the Xf0il team
 
 ########################################################################################################################
 
 class Optimizer(ElementwiseProblem): #Elementwise works with a single solution at a time, I think that's what we want?
     def __init__(self):
-        super().__init__(n_var = 10, # Number of Bezier points, Bezier points will be our variables
+        super().__init__(n_var = 6, # Number of Bezier points, Bezier points will be our variables
                          n_obj = 1, # Currently just optimizing for Cl/Cd
-                       n_ieq_constr = 1, # we are applying one thickness constraint atm
-                       xl = 0,
-                       xu = 1) # Bezier points should be normalized to the foil, so I'm setting bounds from 0-1
+                         n_ieq_constr = 4, #applying max thickness and te thickness, and both booleans
+                         xl = [0.08, 0.20, 0.00, 0.25, 0.60, 0.15],
+                         xu = [0.20, 0.45, 0.08, 0.60, 1.50, 0.45]) # Bezier points should be normalized to the foil, so I'm setting bounds from 0-1
     def _evaluate(self, x, out, *args, **kwargs):
-        thickness = dummy_geometry(x)
-        Cl, Cd = dummy_xfoil_results(x)
-        ld_ratio = Cl/Cd
+        geo_data = dummy_geometry(x)
+        m_thickness = geo_data["max_thickness"]
+        te_thickness = geo_data["te_thickness"]
+        geom_pass = geo_data["pass"]
+
+        g1 = 0.8 - m_thickness
+        g2 = 0.4 - te_thickness
+        g3 = 1 - geom_pass
+
+        dat = geo_data["dat_file"]
+        xfoil_data = dummy_xfoil_results(x)
+        xfoil_pass = xfoil_data["converged"]
+        ld_ratio = xfoil_data["Cl_Cd"]
+
+        g4 = 1 - xfoil_pass
+
         out["F"] = -ld_ratio #out["F"] is what we want to optimize, pymoo's algorithymm strictly minimizes instead of maximizes
-        out["G"] = 0.8 - thickness #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail. I'm setting 0.8 at min thickness
+        out["G"] = [g1, g2, g3, g4] #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail.
 
 problem_WW = Optimizer()
 NSGA_algo = NSGA2(pop_size=10)
