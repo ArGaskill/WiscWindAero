@@ -110,7 +110,7 @@ print("upper =", np.array2string(np.round(upper, 4), separator=", "))
 print("lower =", np.array2string(np.round(lower, 4), separator=", "))
 
 # ------------------------------ plot ------------------------------
-t = np.linspace(0, 1, 200)
+t = np.linspace(0, 1, 80)    #changed num points to 80/profile, 160 total as xfoil usually runs
 cu, cl = bezier(upper, t), bezier(lower, t)
 fig, ax = plt.subplots(figsize=(11, 4))
 ax.fill(np.r_[cu[:, 0], cl[::-1, 0]], np.r_[cu[:, 1], cl[::-1, 1]],
@@ -129,7 +129,20 @@ plt.show()
 
 # -------------- export for SolidWorks (Curve Through XYZ Points) --------------
 # TE upper -> LE -> TE lower, LE point not duplicated
-curve = np.vstack([cu[::-1], cl[1:]]) * CHORD
-xyz = np.c_[curve, np.zeros(len(curve))]
-np.savetxt("airfoil_generated.txt", xyz, fmt="%.6f", delimiter="\t")
-print("\nSaved airfoil_generated.txt")
+
+#curve = np.vstack([cu[::-1], cl[1:]]) * CHORD
+#xyz = np.c_[curve, np.zeros(len(curve))]
+#np.savetxt("airfoil_generated.txt", xyz, fmt="%.6f", delimiter="\t")
+#print("\nSaved airfoil_generated.txt")
+
+#-------------- DAT file exporter--------------
+#Order: TE upper --> LE --> TE Lower
+pts = np.vstack([cu[::-1], cl]) * CHORD   #traces points as one curve, scales to chord length
+
+with open("airfoil.dat", "w") as f:
+    f.write("Bezier Airfoil\n")
+    np.savetxt(f, pts, fmt="%.6f")
+
+print("\nSaved airfoil.dat")
+
+
