@@ -136,7 +136,7 @@ plt.show()
 #print("\nSaved airfoil_generated.txt")
 
 #-------------- DAT file exporter--------------
-#Order: TE upper --> LE --> TE Lower
+
 pts = np.vstack([cu[::-1], cl]) * CHORD   #traces points as one curve, scales to chord length
 
 with open("airfoil.dat", "w") as f:
