@@ -138,7 +138,10 @@ plt.show()
 
 # -------------- export for SolidWorks (Curve Through XYZ Points) --------------
 # TE upper -> LE -> TE lower, LE point not duplicated
-curve = np.vstack([cu[::-1], cl[1:]]) * CHORD
-xyz = np.c_[curve, np.zeros(len(curve))]
-np.savetxt("airfoil_generated.txt", xyz, fmt="%.6f", delimiter="\t")
-print("\nSaved airfoil_generated.txt")
+pts = np.vstack([cu[::-1], cl]) * CHORD   #traces points as one curve, scales to chord length
+
+with open("airfoil.dat", "w") as f:
+    f.write("Bezier Airfoil\n")
+    np.savetxt(f, pts, fmt="%.6f")
+
+print("\nSaved airfoil.dat")
