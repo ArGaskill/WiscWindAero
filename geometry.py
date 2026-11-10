@@ -16,12 +16,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ======================= DESIGN PARAMETERS (edit these) =======================
-T        = 0.12   # max thickness, fraction of chord
-XT       = 0.30   # chordwise position of max thickness
-M        = 0.03   # max camber, fraction of chord (0 = symmetric)
-XM       = 0.40   # chordwise position of max camber
-LE_BLUNT = 1.0    # nose radius factor (1 = typical, >1 rounder, <1 sharper)
-TE_LEN   = 0.30   # length of the last control leg (shorter = larger TE angle)
+T        = 1.89873217e-01   # max thickness, fraction of chord
+XT       = 3.56799552e-01   # chordwise position of max thickness
+M        = 6.80317820e-02   # max camber, fraction of chord (0 = symmetric)
+XM       = 3.52701906e-01    # chordwise position of max camber
+LE_BLUNT = 1.21277438e+00    # nose radius factor (1 = typical, >1 rounder, <1 sharper)
+TE_LEN   = 4.15544514e-01   # length of the last control leg (shorter = larger TE angle)
 TE_GAP   = 0.0    # trailing-edge thickness, fraction of chord (0 = sharp)
 CHORD    = 1.0    # chord length used for the exported file
 # ==============================================================================
@@ -43,8 +43,9 @@ def bezier(ctrl, t):
     return bernstein_matrix(len(ctrl) - 1, t) @ ctrl
 
 
-def build_airfoil():
+def build_airfoil(a):
     # ---- x control positions, shared by thickness, camber and both surfaces ----
+    T, XT, M, XM, LE_BLUNT, TE_LEN = a #The 6 design parameters the airfoil will be modeled from
     x2 = 0.05                      # sets how fast the nose opens up
     x4 = 1.0 - TE_LEN
     # thickness heights relative to the peak (peak = 1). Index 1 sets the nose.
@@ -84,7 +85,15 @@ def build_airfoil():
 
     upper = np.c_[X, c + yt]
     lower = np.c_[X, c - yt]
-    return upper, lower
+
+    filename = "airfoil_generated.dat"
+
+    return {
+        "pass": True,
+        "dat_file": filename,
+        "max_thickness": T,
+        "te_thickness": TE_GAP
+    }
 
 
 def report(upper, lower):

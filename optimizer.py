@@ -25,7 +25,7 @@ def dummy_xfoil_results(x):
 
 class Optimizer(ElementwiseProblem): #Elementwise works with a single solution at a time, I think that's what we want?
     def __init__(self):
-        super().__init__(n_var = 6, # Number of Bezier points, Bezier points will be our variables
+        super().__init__(n_var = 6,
                          n_obj = 1, # Currently just optimizing for Cl/Cd
                          n_ieq_constr = 4, #applying max thickness and te thickness, and both booleans
                          xl = [0.08, 0.20, 0.00, 0.25, 0.60, 0.15],
