@@ -119,7 +119,7 @@ print("upper =", np.array2string(np.round(upper, 4), separator=", "))
 print("lower =", np.array2string(np.round(lower, 4), separator=", "))
 
 # ------------------------------ plot ------------------------------
-t = np.linspace(0, 1, 200)
+t = np.linspace(0, 1, 80)
 cu, cl = bezier(upper, t), bezier(lower, t)
 fig, ax = plt.subplots(figsize=(11, 4))
 ax.fill(np.r_[cu[:, 0], cl[::-1, 0]], np.r_[cu[:, 1], cl[::-1, 1]],
