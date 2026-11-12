@@ -37,7 +37,7 @@ class Optimizer(ElementwiseProblem): #Elementwise works with a single solution a
         geom_pass = geo_data["pass"]
 
         g1 = 0.8 - m_thickness
-        g2 = 0.4 - te_thickness
+        g2 = 0.04 - te_thickness
         g3 = 1 - geom_pass
 
         dat = geo_data["dat_file"]
