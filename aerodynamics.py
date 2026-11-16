@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 xfoil_path = r"xfoil.exe"
-project_dir = Path(r"C:\Users\jacob\PycharmProjects\WiscWindAero") ##chage to your filepath
+project_dir = Path(__file__).resolve().parent ##change to your filepath
 airfoil_path = project_dir / "naca2418.dat"
 airfoil_relative = airfoil_path.relative_to(project_dir)
 airfoil = "Naca 2418"
@@ -14,12 +14,13 @@ end_angle = 15
 step = 1
 
 
-def run_xfoil_sweep(airfoil, xfoil_path, airfoil_path, reynolds, iter, start_angle, end_angle, step):
+def run_xfoil_sweep(airfoil, xfoil_path, airfoil_path, reynolds = 277000, iter=150, start_angle=0, end_angle=15, step=1):
   # Define the sequence of commands to send to XFOIL's interactive prompt.
   # Empty strings ("") simulate pressing the Enter key to accept defaults or prompts.
   commands = [
       f"load {airfoil_path}",  # Load the input dat file
       "",  # Press Enter if prompted for name/modifications
+      "pane", # Smooth out the airfoil geometry
       "oper",  # Enter the OPERating menu
       f"visc {reynolds}",  # Set viscous mode with Reynolds number
       f"iter {iter}",  # (Optional) Increase max iterations for convergence safety

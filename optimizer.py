@@ -1,7 +1,8 @@
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.optimize import minimize
-
+from geometry import build_airfoil
+from aerodynamics import run_xfoil_sweep
 ########################################################################################################################
 
 def dummy_geometry(x):
@@ -31,21 +32,21 @@ class Optimizer(ElementwiseProblem): #Elementwise works with a single solution a
                          xl = [0.08, 0.20, 0.00, 0.25, 0.60, 0.15],
                          xu = [0.20, 0.45, 0.08, 0.60, 1.50, 0.45]) # Bezier points should be normalized to the foil, so I'm setting bounds from 0-1
     def _evaluate(self, x, out, *args, **kwargs):
-        geo_data = dummy_geometry(x)
+        geo_data = build_airfoil(x)
         m_thickness = geo_data["max_thickness"]
         te_thickness = geo_data["te_thickness"]
         geom_pass = geo_data["pass"]
 
-        g1 = 0.8 - m_thickness
-        g2 = 0.04 - te_thickness
-        g3 = 1 - geom_pass
+        g1 = 0.08 - m_thickness
+        g2 = 0.004 - te_thickness
+        g3 = 1 - int(geom_pass)
 
         dat = geo_data["dat_file"]
-        xfoil_data = dummy_xfoil_results(x)
+        xfoil_data = run_xfoil_sweep(dat)
         xfoil_pass = xfoil_data["converged"]
         ld_ratio = xfoil_data["Cl_Cd"]
 
-        g4 = 1 - xfoil_pass
+        g4 = 1 - int(xfoil_pass)
 
         out["F"] = -ld_ratio #out["F"] is what we want to optimize, pymoo's algorithymm strictly minimizes instead of maximizes
         out["G"] = [g1, g2, g3, g4] #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail.
