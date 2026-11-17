@@ -14,12 +14,15 @@ end_angle = 15
 step = 1
 
 
-def run_xfoil_sweep(airfoil, xfoil_path, airfoil_path, reynolds = 277000, iter=150, start_angle=0, end_angle=15, step=1):
+def run_xfoil_sweep(airfoil_path,xfoil_path=xfoil_path, airfoil="Naca 2418", reynolds = 277000, iter=150, start_angle=0, end_angle=15, step=1):
   # Define the sequence of commands to send to XFOIL's interactive prompt.
   # Empty strings ("") simulate pressing the Enter key to accept defaults or prompts.
+  if polar_path.exists():
+     polar_path.unlink()
+
   commands = [
       f"load {airfoil_path}",  # Load the input dat file
-      "",  # Press Enter if prompted for name/modifications
+      #"",  # Press Enter if prompted for name/modifications
       "pane", # Smooth out the airfoil geometry
       "oper",  # Enter the OPERating menu
       f"visc {reynolds}",  # Set viscous mode with Reynolds number
@@ -29,7 +32,7 @@ def run_xfoil_sweep(airfoil, xfoil_path, airfoil_path, reynolds = 277000, iter=1
       "",  # Dump file name (leave blank to skip)
       f"aseq {start_angle} {end_angle} {step}",  # Run Angle of Attack sequence from 0 to 15 with step 1
       "pacc",  # Turn off polar accumulation
-      "quit",  # Exit the OPER menu
+      "",  # Exit the OPER menu
       "quit",  # Exit XFOIL completely
   ]
 
