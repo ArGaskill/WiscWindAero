@@ -96,9 +96,25 @@ if __name__ == "__main__":
 
   # for loop to find the max value in the division_clcd array
   for value in division_clcd:
+      counter += 1
       if value > max:
           max = value
+          alfa = alpha[counter]
 
-  print(f"\nThis is the max cl/cd:  {max}")
+  print(f"\nThis is the max cl/cd: {max}")
+
+  dictionary = {"Cl_Cd": max, "converged": True, "alfa_max": alfa}
+  print(dictionary)
+
+  for value in division_clcd:
+      counter += 1
+      if value > max:
+          max = value
+          alfa = alpha[counter]
+
+  print(f"\nThis is the max cl/cd: {max}")
+
+  dictionary = {"Cl_Cd": max, "converged": True, "alfa_max": alfa }
+  print(dictionary)
 
 
