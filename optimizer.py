@@ -52,8 +52,13 @@ class Optimizer(ElementwiseProblem): #Elementwise works with a single solution a
         out["G"] = [g1, g2, g3, g4] #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail.
 
 problem_WW = Optimizer()
-NSGA_algo = NSGA2(pop_size=10)
-results = minimize(problem_WW, NSGA_algo, termination=('n_gen',10))
+NSGA_algo = NSGA2(pop_size=3)
+results = minimize(problem_WW, NSGA_algo, termination=('n_gen',4), seed=1, verbose=True)
+
+if results.X is not None:
+    best_geo = build_airfoil(results.X)
+    print(f"\nWinning Cl/Cd: {-results.F[0]:.2f}")
+    print("Saved winning coordinates to airfoil_generated.dat")
 
 print("solution: \nX = %s\nF = %s\nG = %s" % (results.X, results.F, results.G))
 # X will give you the inputted random values for the problem

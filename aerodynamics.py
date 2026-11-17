@@ -4,7 +4,7 @@ from pathlib import Path
 
 xfoil_path = r"xfoil.exe"
 project_dir = Path(__file__).resolve().parent
-airfoil_path = project_dir / "naca2418.dat"
+airfoil_path = project_dir / "airfoil_generated.dat"
 airfoil_relative = airfoil_path.relative_to(project_dir)
 airfoil = "Naca_2418"  # No spaces so XFOIL reads the filename cleanly
 reynolds = 277000
