@@ -3,10 +3,10 @@ import subprocess
 from pathlib import Path
 
 xfoil_path = r"xfoil.exe"
-project_dir = Path(__file__).resolve().parent ##change to your filepath
+project_dir = Path(__file__).resolve().parent
 airfoil_path = project_dir / "naca2418.dat"
 airfoil_relative = airfoil_path.relative_to(project_dir)
-airfoil = "Naca 2418"
+airfoil = "Naca_2418"  # No spaces so XFOIL reads the filename cleanly
 reynolds = 277000
 iter = 150
 start_angle = 0
@@ -14,107 +14,75 @@ end_angle = 15
 step = 1
 
 
-def run_xfoil_sweep(airfoil_path,xfoil_path=xfoil_path, airfoil="Naca 2418", reynolds = 277000, iter=150, start_angle=0, end_angle=15, step=1):
-  # Define the sequence of commands to send to XFOIL's interactive prompt.
-  # Empty strings ("") simulate pressing the Enter key to accept defaults or prompts.
-  if polar_path.exists():
-     polar_path.unlink()
+def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reynolds=277000, iter=150, start_angle=0, end_angle=15, step=1):
+    polar_path = project_dir / f"polar_{airfoil}.txt"
+    if polar_path.exists():
+        polar_path.unlink()  # Delete old polar file before running XFOIL
 
-  commands = [
-      f"load {airfoil_path}",  # Load the input dat file
-      #"",  # Press Enter if prompted for name/modifications
-      "pane", # Smooth out the airfoil geometry
-      "oper",  # Enter the OPERating menu
-      f"visc {reynolds}",  # Set viscous mode with Reynolds number
-      f"iter {iter}",  # (Optional) Increase max iterations for convergence safety
-      "pacc",  # Turn on polar accumulation
-      f"polar_{airfoil}.txt",  # Name of the output polar file
-      "",  # Dump file name (leave blank to skip)
-      f"aseq {start_angle} {end_angle} {step}",  # Run Angle of Attack sequence from 0 to 15 with step 1
-      "pacc",  # Turn off polar accumulation
-      "",  # Exit the OPER menu
-      "quit",  # Exit XFOIL completely
-  ]
+    commands = [
+        f"load {airfoil_path}",
+        "pane",
+        "oper",
+        f"visc {reynolds}",
+        f"iter {iter}",
+        "pacc",
+        f"polar_{airfoil}.txt",
+        "",
+        f"aseq {start_angle} {end_angle} {step}",
+        "pacc",
+        "",      # Exit the OPER menu
+        "quit",  # Exit XFOIL completely
+    ]
 
-  # Join commands into a single multi-line string separated by newlines
-  input_commands = "\n".join(commands) + "\n"
+    input_commands = "\n".join(commands) + "\n"
 
-  try:
-    print("Starting XFOIL subprocess...")
+    try:
+        process = subprocess.Popen(
+            [str(xfoil_path)],
+            cwd=str(project_dir),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = process.communicate(input=input_commands, timeout=15)
 
-    # Launch XFOIL in the background
-    process = subprocess.Popen(
-        [str(xfoil_path)],
-        cwd=str(project_dir),
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
+        # Check if XFOIL created a valid polar file with at least 1 converged row
+        if not polar_path.exists():
+            return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
 
+        data = np.loadtxt(polar_path, skiprows=12)
+        if data.size == 0:
+            return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
+        data = np.atleast_2d(data)  # Prevents 1D array crash if only 1 AoA converged
 
-    # Send the commands to XFOIL and capture the output and errors
-    stdout, stderr = process.communicate(input=input_commands)
+        alpha = data[:, 0]
+        cl = data[:, 1]
+        cd = data[:, 2]
 
-    print("XFOIL execution finished successfully!")
-    print("\n--- XFOIL Output Log ---")
-    print(stdout)
+        division_clcd = cl / cd
 
-    if stderr:
-      print("\n--- Errors / Warnings ---")
-      print(stderr)
+        max_clcd = 0.0
+        alfa = 0.0
 
-  except FileNotFoundError:
-    print(
-        "Error: XFOIL executable not found. Make sure XFOIL is installed and"
-        " added to your system PATH, or provide its absolute path."
-    )
-  except Exception as e:
-    print(f"An unexpected error occurred: {e}")
+        # enumerate() gives both the exact index (i) and value without off-by-one bugs
+        for i, value in enumerate(division_clcd):
+            if value > max_clcd:
+                max_clcd = float(value)
+                alfa = float(alpha[i])
+
+        dictionary = {"Cl_Cd": max_clcd, "converged": True, "alfa_max": alfa}
+        return dictionary
+
+    except FileNotFoundError:
+        print("Error: XFOIL executable not found.")
+        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
 
 
 if __name__ == "__main__":
-  polar_path = project_dir / f"polar_{airfoil}.txt"
-  if polar_path.exists():
-     polar_path.unlink()  # Deletes the old polar file
-  run_xfoil_sweep(airfoil, xfoil_path, airfoil_relative, reynolds, iter, start_angle, end_angle, step)
-  data = np.loadtxt(f"polar_{airfoil}.txt", skiprows=12)
-
-  # extracts the values in the polar text file, creating an array
-  alpha = data[:, 0]
-  cl = data[:, 1]
-  cd = data[:, 2]
-  CDp = data[:, 3]
-  CM = data[:, 4]
-  Top_Xtr = data[:, 5]
-  Bot_Xtr = data[:, 6]
-
-  division_clcd = cl / cd  # divides the cl value by the cd value to get the cl/cd ratio, puts the values in an array
-  print(division_clcd)  # prints the array
-
-  max = 0  # sets variable "max" to 0
-
-  # for loop to find the max value in the division_clcd array
-  for value in division_clcd:
-      counter += 1
-      if value > max:
-          max = value
-          alfa = alpha[counter]
-
-  print(f"\nThis is the max cl/cd: {max}")
-
-  dictionary = {"Cl_Cd": max, "converged": True, "alfa_max": alfa}
-  print(dictionary)
-
-  for value in division_clcd:
-      counter += 1
-      if value > max:
-          max = value
-          alfa = alpha[counter]
-
-  print(f"\nThis is the max cl/cd: {max}")
-
-  dictionary = {"Cl_Cd": max, "converged": True, "alfa_max": alfa }
-  print(dictionary)
-
-
+    # Argument order now matches def run_xfoil_sweep(airfoil_path, xfoil_path, airfoil, ...)
+    result = run_xfoil_sweep(airfoil_relative, xfoil_path, airfoil, reynolds, iter, start_angle, end_angle, step)
+    print("\nReturned Dictionary:", result)
