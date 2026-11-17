@@ -4,9 +4,9 @@ from pathlib import Path
 
 xfoil_path = r"xfoil.exe"
 project_dir = Path(r"C:\Users\jacob\PycharmProjects\WiscWindAero") ##chage to your filepath
-airfoil_path = project_dir / "naca2418.dat"
+airfoil_path = project_dir / "naca4412.dat"
 airfoil_relative = airfoil_path.relative_to(project_dir)
-airfoil = "Naca 2418"
+airfoil = "Naca 4412"
 reynolds = 277000
 iter = 150
 start_angle = 0
@@ -89,12 +89,17 @@ if __name__ == "__main__":
   print(division_clcd)  # prints the array
 
   max = 0  # sets variable "max" to 0
-
+  counter = -1
   # for loop to find the max value in the division_clcd array
   for value in division_clcd:
+      counter += 1
       if value > max:
           max = value
+          alfa = alpha[counter]
 
-  print(f"\nThis is the max cl/cd:  {max}")
+  print(f"\nThis is the max cl/cd: {max}")
+
+  dictionary = {"Cl_Cd": max, "converged": True, "alfa_max": alfa }
+  print(dictionary)
 
 
