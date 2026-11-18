@@ -49,11 +49,11 @@ def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reyn
 
         # Check if XFOIL created a valid polar file with at least 1 converged row
         if not polar_path.exists():
-            return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
+            return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
 
         data = np.loadtxt(polar_path, skiprows=12)
         if data.size == 0:
-            return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
+            return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
         data = np.atleast_2d(data)  # Prevents 1D array crash if only 1 AoA converged
 
         alpha = data[:, 0]
@@ -77,10 +77,10 @@ def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reyn
 
     except FileNotFoundError:
         print("Error: XFOIL executable not found.")
-        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
+        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0}
+        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
 
 
 if __name__ == "__main__":
