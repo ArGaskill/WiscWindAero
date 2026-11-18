@@ -35,7 +35,7 @@ def bezier(ctrl, t):
     return bernstein_matrix(len(ctrl) - 1, t) @ ctrl
 
 
-def build_airfoil(a):
+def build_airfoil(a, filename="airfoil_generated.dat"):
     T, XT, M, XM, LE_BLUNT, TE_LEN = a #The 6 design parameters the airfoil will be modeled from
 
     x2 = 0.05                      # sets how fast the nose opens up
@@ -76,8 +76,6 @@ def build_airfoil(a):
 
     upper = np.c_[X, c + yt]
     lower = np.c_[X, c - yt]
-
-    filename = "airfoil_generated.dat"
 
     # Evaluate 80 points per surface (159 total points in Selig order)
     t_export = np.linspace(0, 1, 80)

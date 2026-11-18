@@ -3,6 +3,9 @@ from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.optimize import minimize
 from geometry import build_airfoil
 from aerodynamics import run_xfoil_sweep
+import numpy as np
+import plotly.graph_objs as go
+import plotly.express as px
 ########################################################################################################################
 
 def dummy_geometry(x):
@@ -27,7 +30,7 @@ def dummy_xfoil_results(x):
 class Optimizer(ElementwiseProblem): #Elementwise works with a single solution at a time, I think that's what we want?
     def __init__(self):
         super().__init__(n_var = 6,
-                         n_obj = 1, # Currently just optimizing for Cl/Cd
+                         n_obj = 2, # Currently just optimizing for Cl/Cd
                          n_ieq_constr = 4, #applying max thickness and te thickness, and both booleans
                          xl = [0.08, 0.20, 0.00, 0.25, 0.60, 0.15],
                          xu = [0.20, 0.45, 0.08, 0.60, 1.50, 0.45]) # Bezier points should be normalized to the foil, so I'm setting bounds from 0-1
@@ -45,10 +48,11 @@ class Optimizer(ElementwiseProblem): #Elementwise works with a single solution a
         xfoil_data = run_xfoil_sweep(dat)
         xfoil_pass = xfoil_data["converged"]
         ld_ratio = xfoil_data["Cl_Cd"]
+        max_cl = xfoil_data["Max_Cl"]
 
         g4 = 1 - int(xfoil_pass)
 
-        out["F"] = -ld_ratio #out["F"] is what we want to optimize, pymoo's algorithymm strictly minimizes instead of maximizes
+        out["F"] = [-ld_ratio, -max_cl] #out["F"] is what we want to optimize, pymoo's algorithymm strictly minimizes instead of maximizes
         out["G"] = [g1, g2, g3, g4] #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail.
 
 problem_WW = Optimizer()
@@ -56,11 +60,32 @@ NSGA_algo = NSGA2(pop_size=3)
 results = minimize(problem_WW, NSGA_algo, termination=('n_gen',4), seed=1, verbose=True)
 
 if results.X is not None:
-    best_geo = build_airfoil(results.X)
-    print(f"\nWinning Cl/Cd: {-results.F[0]:.2f}")
-    print("Saved winning coordinates to airfoil_generated.dat")
+    F = -results.F
+    X = results.X
 
-print("solution: \nX = %s\nF = %s\nG = %s" % (results.X, results.F, results.G))
-# X will give you the inputted random values for the problem
-# F will give you calculated Cl/Cd
-# G will tell you whether thickness passed or failed (neg or pos) 12
+    idx_best_clcd = np.argmax(F[:, 0])
+    idx_best_lift = np.argmax(F[:, 1])
+
+    print("\n--- RESULTS ---")
+
+    print("Highest Cl/Cd:")
+    print(f"   Cl/Cd Ratio: {F[idx_best_clcd, 0]:.2f}")
+    print(f"   Max Cl:      {F[idx_best_clcd, 1]:.3f}")
+    print(f"   Parameters:  {np.round(X[idx_best_clcd], 4)}\n")
+
+    # 5. Print the stats for the Root Airfoil (High Lift)
+    print("Highest Lift:")
+    print(f"   Cl/Cd Ratio: {F[idx_best_lift, 0]:.2f}")
+    print(f"   Max Cl:      {F[idx_best_lift, 1]:.3f}")
+    print(f"   Parameters:  {np.round(X[idx_best_lift], 4)}")
+
+    # 6. Save the two different dat files for QBlade
+    build_airfoil(X[idx_best_clcd], filename="WW_Max_ClCd.dat")
+    build_airfoil(X[idx_best_lift], filename="WW_Max_Lift.dat")
+
+    data = {"Lift": F[:,1],
+            "ClCd": F[:,0],
+            "X": X}
+
+    parameters = []
+

@@ -59,6 +59,7 @@ def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reyn
         alpha = data[:, 0]
         cl = data[:, 1]
         cd = data[:, 2]
+        cl_max = float(np.max(cl))
 
         division_clcd = cl / cd
 
@@ -71,7 +72,7 @@ def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reyn
                 max_clcd = float(value)
                 alfa = float(alpha[i])
 
-        dictionary = {"Cl_Cd": max_clcd, "converged": True, "alfa_max": alfa}
+        dictionary = {"Cl_Cd": max_clcd, "converged": True, "alfa_max": alfa, "Max_Cl":cl_max}
         return dictionary
 
     except FileNotFoundError:
