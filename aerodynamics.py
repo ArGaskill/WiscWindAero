@@ -20,6 +20,9 @@ def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reyn
         polar_path.unlink()  # Delete old polar file before running XFOIL
 
     commands = [
+        "plop",  # Open plot options menu
+        "g",  # Toggle graphics flag to False
+        "",
         f"load {airfoil_path}",
         "pane",
         "oper",
@@ -75,10 +78,18 @@ def run_xfoil_sweep(airfoil_path, xfoil_path=xfoil_path, airfoil="current", reyn
         dictionary = {"Cl_Cd": max_clcd, "converged": True, "alfa_max": alfa, "Max_Cl":cl_max}
         return dictionary
 
+    except subprocess.TimeoutExpired:
+        # If XFOIL hangs for 15 seconds, Python actively murders the background task
+        process.kill()
+        return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
+
     except FileNotFoundError:
         print("Error: XFOIL executable not found.")
         return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
+
     except Exception as e:
+        # Catch-all assassin for any other OS-level crash
+        process.kill()
         print(f"An unexpected error occurred: {e}")
         return {"Cl_Cd": 0.0, "converged": False, "alfa_max": 0.0, "Max_Cl": 0.0}
 

@@ -95,8 +95,8 @@ if results.X is not None:
         parameters.append(text)
 
     # 1. Normalize both metrics to a 0.0 - 1.0 scale
-    norm_clcd = F[:, 0] / np.max(F[:, 0])
-    norm_lift = F[:, 1] / np.max(F[:, 1])
+    norm_clcd = (F[:, 0] - np.min(F[:, 0])) / (np.max(F[:, 0]) - np.min(F[:, 0]))
+    norm_lift = (F[:, 1] - np.min(F[:, 1])) / (np.max(F[:, 1]) - np.min(F[:, 1]))
 
     # 2. Calculate Euclidean distance from every airfoil to the perfect (1, 1) coordinate
     distances = np.sqrt((1.0 - norm_clcd) ** 2 + (1.0 - norm_lift) ** 2)
