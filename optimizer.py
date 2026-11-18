@@ -2,63 +2,65 @@ from pymoo.core.problem import ElementwiseProblem
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.optimize import minimize
 from geometry import build_airfoil
-from aerodynamics import run_xfoil_sweep
+from aerodynamics import run_xfoil_sweep, run_dual_re_sweep
 import numpy as np
 import plotly.graph_objs as go
 import plotly.express as px
-import pandas as pd
-########################################################################################################################
 
-def dummy_geometry(x):
-    return {
-        "pass": True, #does the geometry pass minimum recommended geometric attributes?
-        "dat_file": "airfoil_dat", #imported dat file
-        "max_thickness": 1, #normalized thickness
-        "te_thickness": .4  #normalized trailing edge thickness
-    }
-# dummy geometry now returns a dictionary that can give us all the information needed to run the optimizer
+# ======================= OPTIMIZATION SETTINGS =======================
+USE_DUAL_RE = False  # Set True to blend 70% Re=55k + 30% Re=35k (~2x runtime)
+POP_SIZE = 12        # Quick sanity check; bump to ~40 for a real run
+N_GEN = 5          # Quick sanity check; bump to ~30 for a real run
+# =====================================================================
 
-def dummy_xfoil_results(x):
-    return {
-        "Cl_Cd": 42.6, #gives Cl/Cd ratio
-        "converged": True, #tells us if the xfoil simulation converged successfully
-        "alfa_max": 4 #tells us AOA at max Cl/Cd
-    }
-# Same here for the Xf0il team
 
-########################################################################################################################
-
-class Optimizer(ElementwiseProblem): #Elementwise works with a single solution at a time, I think that's what we want?
+class Optimizer(ElementwiseProblem):
     def __init__(self):
-        super().__init__(n_var = 6,
-                         n_obj = 2, # Currently just optimizing for Cl/Cd
-                         n_ieq_constr = 4, #applying max thickness and te thickness, and both booleans
-                         xl = [0.08, 0.20, 0.00, 0.25, 0.60, 0.15],
-                         xu = [0.20, 0.45, 0.08, 0.60, 1.50, 0.45]) # Bezier points should be normalized to the foil, so I'm setting bounds from 0-1
+        super().__init__(
+            n_var=6,
+            n_obj=2,
+            n_ieq_constr=8,
+            # [T, XT, M, XM, LE_BLUNT, TE_LEN] — thickness bounded to low-Re sweet spot (7.5%–11.5%)
+            xl=[0.075, 0.20, 0.00, 0.25, 0.60, 0.15],
+            xu=[0.115, 0.45, 0.08, 0.60, 1.50, 0.45],
+        )
+
     def _evaluate(self, x, out, *args, **kwargs):
         geo_data = build_airfoil(x)
         m_thickness = geo_data["max_thickness"]
         te_thickness = geo_data["te_thickness"]
         geom_pass = geo_data["pass"]
 
-        g1 = 0.08 - m_thickness
-        g2 = 0.004 - te_thickness
-        g3 = 1 - int(geom_pass)
-
         dat = geo_data["dat_file"]
-        xfoil_data = run_xfoil_sweep(dat)
+        if USE_DUAL_RE:
+            xfoil_data = run_dual_re_sweep(dat)
+        else:
+            xfoil_data = run_xfoil_sweep(dat)
+
         xfoil_pass = xfoil_data["converged"]
         ld_ratio = xfoil_data["Cl_Cd"]
         max_cl = xfoil_data["Max_Cl"]
+        stall_margin = xfoil_data["stall_margin"]
+        cl_opt = xfoil_data["Cl_opt"]
+        min_slope = xfoil_data["min_slope"]
 
-        g4 = 1 - int(xfoil_pass)
+        # Constraints (all must be <= 0 to be feasible)
+        g1 = 0.075 - m_thickness    # t/c >= 7.5% (>= 1.43 mm at 19 mm tip)
+        g2 = m_thickness - 0.115    # t/c <= 11.5% (avoids thick-foil LSB drag)
+        g3 = 0.004 - te_thickness   # TE gap >= 0.4% chord
+        g4 = 1 - int(geom_pass)     # Valid geometry
+        g5 = 1 - int(xfoil_pass)    # Converged XFOIL polar (>= 6 points)
+        g6 = 3.0 - stall_margin     # At least 3.0 deg margin before stall
+        g7 = 0.70 - cl_opt          # Keeps Schmitz chord compact
+        g8 = 0.01 - min_slope       # Rejects pre-stall separation bubble lift drops
 
-        out["F"] = [-ld_ratio, -max_cl] #out["F"] is what we want to optimize, pymoo's algorithymm strictly minimizes instead of maximizes
-        out["G"] = [g1, g2, g3, g4] #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail.
+        out["F"] = [-ld_ratio, -max_cl]
+        out["G"] = [g1, g2, g3, g4, g5, g6, g7, g8]
+
 
 problem_WW = Optimizer()
-NSGA_algo = NSGA2(pop_size=4)
-results = minimize(problem_WW, NSGA_algo, termination=('n_gen',4), seed=1, verbose=True)
+NSGA_algo = NSGA2(pop_size=POP_SIZE)
+results = minimize(problem_WW, NSGA_algo, termination=("n_gen", N_GEN), seed=1, verbose=True)
 
 if results.X is not None:
     F = np.atleast_2d(-results.F)
@@ -67,75 +69,71 @@ if results.X is not None:
     idx_best_clcd = np.argmax(F[:, 0])
     idx_best_lift = np.argmax(F[:, 1])
 
-    print("\n--- RESULTS ---")
+    print("\n--- RESULTS (Re = 55k Low-Re Tunnel) ---")
 
-    print("Highest Cl/Cd:")
-    print(f"   Cl/Cd Ratio: {F[idx_best_clcd, 0]:.2f}")
-    print(f"   Max Cl:      {F[idx_best_clcd, 1]:.3f}")
-    print(f"   Parameters:  {np.round(X[idx_best_clcd], 4)}\n")
+    print("Highest Robust Cl/Cd:")
+    print(f"   Robust Cl/Cd: {F[idx_best_clcd, 0]:.2f}")
+    print(f"   Max Cl:       {F[idx_best_clcd, 1]:.3f}")
+    print(f"   Parameters:   {np.round(X[idx_best_clcd], 4)}\n")
 
-    # 5. Print the stats for the Root Airfoil (High Lift)
     print("Highest Lift:")
-    print(f"   Cl/Cd Ratio: {F[idx_best_lift, 0]:.2f}")
-    print(f"   Max Cl:      {F[idx_best_lift, 1]:.3f}")
-    print(f"   Parameters:  {np.round(X[idx_best_lift], 4)}")
+    print(f"   Robust Cl/Cd: {F[idx_best_lift, 0]:.2f}")
+    print(f"   Max Cl:       {F[idx_best_lift, 1]:.3f}")
+    print(f"   Parameters:   {np.round(X[idx_best_lift], 4)}\n")
 
-    # 6. Save the two different dat files for QBlade
-    build_airfoil(X[idx_best_clcd], filename="WW_Max_ClCd.dat")
-    build_airfoil(X[idx_best_lift], filename="WW_Max_Lift.dat")
+    # Safe min-max normalization (avoids division by zero if only 1 feasible point)
+    clcd_span = max(float(np.ptp(F[:, 0])), 1e-9)
+    lift_span = max(float(np.ptp(F[:, 1])), 1e-9)
+    norm_clcd = (F[:, 0] - np.min(F[:, 0])) / clcd_span
+    norm_lift = (F[:, 1] - np.min(F[:, 1])) / lift_span
 
-    data = {"Lift": F[:,1],
-            "ClCd": F[:,0],
-            "Thickness": X[:,0]}
-
-    parameters  = []
-
-    for x in X:
-        text = str(np.round(x,4))
-        parameters.append(text)
-
-    # 1. Normalize both metrics to a 0.0 - 1.0 scale
-    norm_clcd = (F[:, 0] - np.min(F[:, 0])) / (np.max(F[:, 0]) - np.min(F[:, 0]))
-    norm_lift = (F[:, 1] - np.min(F[:, 1])) / (np.max(F[:, 1]) - np.min(F[:, 1]))
-
-    # 2. Calculate Euclidean distance from every airfoil to the perfect (1, 1) coordinate
     distances = np.sqrt((1.0 - norm_clcd) ** 2 + (1.0 - norm_lift) ** 2)
+    idx_balanced = int(np.argmin(distances))
 
-    # 3. Find the row index with the absolute shortest distance
-    idx_balanced = np.argmin(distances)
-
-    # Print the stats for the console
     print("Balanced Mid-Span:")
-    print(f"   Cl/Cd Ratio: {F[idx_balanced, 0]:.2f}")
-    print(f"   Max Cl:      {F[idx_balanced, 1]:.3f}")
-    print(f"   Parameters:  {np.round(X[idx_balanced], 4)}\n")
+    print(f"   Robust Cl/Cd: {F[idx_balanced, 0]:.2f}")
+    print(f"   Max Cl:       {F[idx_balanced, 1]:.3f}")
+    print(f"   Parameters:   {np.round(X[idx_balanced], 4)}\n")
 
-    # Save the 3rd dat file alongside the other two
-    build_airfoil(X[idx_balanced], filename="WW_MidSpan_Balanced.dat")
+    # Export champion .dat files with Re55k tag
+    build_airfoil(X[idx_best_clcd], filename="WW_Max_ClCd_Re55k.dat")
+    build_airfoil(X[idx_best_lift], filename="WW_Max_Lift_Re55k.dat")
+    build_airfoil(X[idx_balanced], filename="WW_MidSpan_Balanced_Re55k.dat")
 
-    fig = px.scatter(data, x="Lift", y="ClCd",color="Thickness", hover_name= parameters)
+    data = {
+        "Lift": F[:, 1],
+        "ClCd": F[:, 0],
+        "Thickness": X[:, 0],
+    }
+    parameters = [str(np.round(x, 4)) for x in X]
+
+    fig = px.scatter(
+        data,
+        x="Lift",
+        y="ClCd",
+        color="Thickness",
+        hover_name=parameters,
+        title="WiscWind Pareto Front (Re = 55k, N-Crit = 6.5)",
+    )
     fig.add_trace(
         go.Scatter(
             x=[F[idx_best_clcd, 1], F[idx_best_lift, 1], F[idx_balanced, 1]],
             y=[F[idx_best_clcd, 0], F[idx_best_lift, 0], F[idx_balanced, 0]],
-            mode='markers+text',
+            mode="markers+text",
             marker=dict(
-                symbol='star',
+                symbol="star",
                 size=16,
-                color='#c5050c',
-                line=dict(width=2, color='black')
+                color="#c5050c",
+                line=dict(width=2, color="black"),
             ),
             text=["Efficiency Champion", "Lift Champion", "Balanced Champion"],
             textposition="top center",
             name="Champions",
-            hoverinfo="skip"
+            hoverinfo="skip",
         )
     )
 
     fig.show()
-    fig.write_html("WW_Pareto_Front.html")
-
-
-
-
-
+    fig.write_html("WW_Pareto_Front_Re55k.html")
+else:
+    print("No feasible airfoils found. Try increasing POP_SIZE / N_GEN or relaxing g6/g8 slightly.")
