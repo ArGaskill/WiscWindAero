@@ -6,6 +6,7 @@ from aerodynamics import run_xfoil_sweep
 import numpy as np
 import plotly.graph_objs as go
 import plotly.express as px
+import pandas as pd
 ########################################################################################################################
 
 def dummy_geometry(x):
@@ -56,12 +57,12 @@ class Optimizer(ElementwiseProblem): #Elementwise works with a single solution a
         out["G"] = [g1, g2, g3, g4] #pymoo requires out["G"] <= 0 to pass and out["G"] > 0 to fail.
 
 problem_WW = Optimizer()
-NSGA_algo = NSGA2(pop_size=3)
+NSGA_algo = NSGA2(pop_size=4)
 results = minimize(problem_WW, NSGA_algo, termination=('n_gen',4), seed=1, verbose=True)
 
 if results.X is not None:
-    F = -results.F
-    X = results.X
+    F = np.atleast_2d(-results.F)
+    X = np.atleast_2d(results.X)
 
     idx_best_clcd = np.argmax(F[:, 0])
     idx_best_lift = np.argmax(F[:, 1])
@@ -85,7 +86,56 @@ if results.X is not None:
 
     data = {"Lift": F[:,1],
             "ClCd": F[:,0],
-            "X": X}
+            "Thickness": X[:,0]}
 
-    parameters = []
+    parameters  = []
+
+    for x in X:
+        text = str(np.round(x,4))
+        parameters.append(text)
+
+    # 1. Normalize both metrics to a 0.0 - 1.0 scale
+    norm_clcd = F[:, 0] / np.max(F[:, 0])
+    norm_lift = F[:, 1] / np.max(F[:, 1])
+
+    # 2. Calculate Euclidean distance from every airfoil to the perfect (1, 1) coordinate
+    distances = np.sqrt((1.0 - norm_clcd) ** 2 + (1.0 - norm_lift) ** 2)
+
+    # 3. Find the row index with the absolute shortest distance
+    idx_balanced = np.argmin(distances)
+
+    # Print the stats for the console
+    print("Balanced Mid-Span:")
+    print(f"   Cl/Cd Ratio: {F[idx_balanced, 0]:.2f}")
+    print(f"   Max Cl:      {F[idx_balanced, 1]:.3f}")
+    print(f"   Parameters:  {np.round(X[idx_balanced], 4)}\n")
+
+    # Save the 3rd dat file alongside the other two
+    build_airfoil(X[idx_balanced], filename="WW_MidSpan_Balanced.dat")
+
+    fig = px.scatter(data, x="Lift", y="ClCd",color="Thickness", hover_name= parameters)
+    fig.add_trace(
+        go.Scatter(
+            x=[F[idx_best_clcd, 1], F[idx_best_lift, 1], F[idx_balanced, 1]],
+            y=[F[idx_best_clcd, 0], F[idx_best_lift, 0], F[idx_balanced, 0]],
+            mode='markers+text',
+            marker=dict(
+                symbol='star',
+                size=16,
+                color='#c5050c',
+                line=dict(width=2, color='black')
+            ),
+            text=["Efficiency Champion", "Lift Champion", "Balanced Champion"],
+            textposition="top center",
+            name="Champions",
+            hoverinfo="skip"
+        )
+    )
+
+    fig.show()
+    fig.write_html("WW_Pareto_Front.html")
+
+
+
+
 
